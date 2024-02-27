@@ -8,7 +8,7 @@ OBJ_DIR=obj
 BIN_DIR=bin
 
 # executable name
-EXE=$(BIN_DIR)/mezu_test
+EXE=$(BIN_DIR)/sorna_test
 
 # All .c files
 SRC=$(wildcard $(SRC_DIR)/*.c)
@@ -17,7 +17,7 @@ SRC=$(wildcard $(SRC_DIR)/*.c)
 OBJ=$(SRC:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
 
 # Set compiler and linker flags
-CPPFLAGS  =-Iinc -MMD -MP
+CPPFLAGS  =-Iinc -Icore -MMD -MP
 CFLAGS    =-Wall
 LDFLAGS   =
 LDLIBS    =

@@ -9,7 +9,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include "mezu.h"
+#include "../core/sorna.h"
 
 void print_str(char* str)
 {
@@ -18,7 +18,7 @@ void print_str(char* str)
 
 int main(int arvc, char *argv[])
 {
-   if(MEZU_SUCCESS == mezu_init(NULL, print_str, NULL,   "\r\n   ***   MEZU   ***\r\n"
+   if(SORNA_SUCCESS == sorna_init(NULL, print_str, NULL,   "\r\n   ***   SORNA   ***\r\n"
                                                          "   Test Program\r\n"))
    {
       while (true)
@@ -28,7 +28,7 @@ int main(int arvc, char *argv[])
    }
    else
    {
-      printf("\r\nERR:mezu-Initialisation_Failed\r\n");
+      printf("\r\nERR:sorna-Initialisation_Failed\r\n");
    }
    return 0;
 }
