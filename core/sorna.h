@@ -1,9 +1,10 @@
 /*
- * 
+ *
  *  file        :   sorna.h
  *  description :   sorna is a simple shell implementation.
  *  author      :   M. Tibbitts (github.com/tibbdev)
- *  date        :   22-07-2021 
+ *  date        :   22-07-2021
+ *
  */
 
 #pragma once
@@ -43,9 +44,10 @@
 
 // function typedefs
 typedef int8_t  (*cmd_func_t)(uint8_t argc, char *argv[]);
-typedef void    (*write_str_func_t)(char *str);
+typedef void    (*write_str_func_t)(char const * const str);
+typedef void    (*reset_func_t)();
 
-int8_t sorna_init(char * prompt, write_str_func_t write_str_f, char * welcome_msg);
+int8_t sorna_init(char * prompt, write_str_func_t write_str_f, reset_func_t reset_f, char * welcome_msg);
 int8_t sorna_tick(char ch);
 int8_t sorna_register_cmd(char * cmd_str, cmd_func_t cmd_func, char *desc_short, char *desc_long);
-void sorna_write_str(char *str);
+void sorna_write_str(char const * const str);

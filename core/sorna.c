@@ -1,9 +1,10 @@
 /*
- * 
+ *
  *  file        :   sorna.c
  *  description :   sorna is a simple shell implementation.
  *  author      :   M. Tibbitts (github.com/tibbdev)
- *  date        :   22-07-2021 
+ *  date        :   22-07-2021
+ *
  */
 #include "sorna.h"
 
@@ -22,6 +23,7 @@ typedef struct sorna_struct
     cmd_entry_t         commands[SORNA_MAX_COMMANDS];
     char                prompt[SORNA_MAX_PROMPT_LENGTH + 1];
     write_str_func_t    write_str_f;
+    reset_func_t        reset_f;
     uint8_t             cmd_count;
     char                in_buff[SORNA_MAX_INPUT_STRING_LENGTH + 1];
     uint8_t             buff_pos;
@@ -75,16 +77,24 @@ int8_t help_cmd(uint8_t argc, char *argv[])
         {
             return SORNA_SUCCESS;
         }
-        else
-        {
-            return SORNA_FAIL_UNKNOWN_CMD;
-        }
+
+        return SORNA_FAIL_UNKNOWN_CMD;
         
     }
     return SORNA_FAIL;
 }
 
-int8_t sorna_init(char * prompt, write_str_func_t write_str_f, char * welcome_msg)
+int8_t reset_cmd(uint8_t argc, char *argv[]);
+int8_t reset_cmd(uint8_t argc, char *argv[])
+{
+    sorna_write_str("\r\n...Resetting");
+    _sorna.reset_f();
+
+    sorna_write_str("\r\nERR:reset-DIDNT_RESET!");
+    return -1;
+}
+
+int8_t sorna_init(char * prompt, write_str_func_t write_str_f, reset_func_t reset_f, char * welcome_msg)
 {
     // clear arrays
     memset((void *)_sorna.prompt, 0, SORNA_MAX_PROMPT_LENGTH + 1);
@@ -119,18 +129,25 @@ int8_t sorna_init(char * prompt, write_str_func_t write_str_f, char * welcome_ms
     _sorna.cmd_count = 0;
     _sorna.buff_pos = 0;
 
-    rv = sorna_register_cmd("help", help_cmd, "provides help for registered commands", 
+    rv = sorna_register_cmd("help", help_cmd, "provides help for registered commands",
             "   usage : help <arg1>\r\n"
             "     NOTE: arg1 is optional\r\n"
             "     arg1 : name of the command for more detailed instructions\r\n"
             "     with no value for arg1, short descriptions of all registered functions will be displayed\r\n");
+
+    if(NULL != reset_f)
+    {
+        _sorna.reset_f = reset_f;
+        rv = sorna_register_cmd("reset", reset_cmd, "performs software reset",
+            "   usage : reset\r\n");
+    }
 
     _sorna.initialised = true;
 
     if(NULL != welcome_msg)
     {
         sorna_write_str(welcome_msg);
-        sorna_write_str("\r\n.\r\n\r\n");
+        sorna_write_str("\r\n");
     }
     else
     {
@@ -146,10 +163,21 @@ int8_t sorna_tick(char ch)
 {
     if(_sorna.initialised)
     {
+        if(_sorna.echo)
+        {
+            char tx[2] = {ch, 0};
+            sorna_write_str(tx);
+        }
+
+        if(0u == ch)
+        {
+            return SORNA_FAIL;
+        }
+
         // Read Input character
         if (SORNA_MAX_INPUT_STRING_LENGTH > _sorna.buff_pos)
         {
-            if ('\b' == ch)
+            if (('\b' == ch) || ((char)0x48 == ch))
             {
                 if(0 < _sorna.buff_pos)
                 {
@@ -160,11 +188,7 @@ int8_t sorna_tick(char ch)
             else
             {
                 _sorna.in_buff[_sorna.buff_pos] = ch;
-            }
-            if(_sorna.echo)
-            {
-                char tx[2] = {ch, 0};
-                sorna_write_str(tx);
+                _sorna.buff_pos++;
             }
         }
         else
@@ -178,15 +202,26 @@ int8_t sorna_tick(char ch)
         if(NULL != _sorna.in_buff)
         {
             // if carriage return or new line are the last characters in the buffer
-            if(('\r' != _sorna.in_buff[_sorna.buff_pos - 1]) || ('\n' != _sorna.in_buff[_sorna.buff_pos - 1]))
+            if(('\r' == _sorna.in_buff[_sorna.buff_pos - 1]) || ('\n' == _sorna.in_buff[_sorna.buff_pos - 1]))
             {
+                // erase last char from buffer
+                _sorna.buff_pos--;
+                _sorna.in_buff[_sorna.buff_pos] = '\0';
+
+                if(!strlen(_sorna.in_buff))
+                {
+                    return SORNA_SUCCESS;
+                }
+
+                // get ready...
                 uint8_t argc = 0;
                 char *argv[SORNA_MAX_ARGS];
                 bool no_more_args = false;
 
-                for (uint8_t idx = 0; ((idx < SORNA_MAX_ARGS) && !no_more_args); idx++)
+                argv[0] = strtok(_sorna.in_buff, " ");
+                for (uint8_t idx = 1; ((idx < SORNA_MAX_ARGS) && !no_more_args); idx++)
                 {
-                    argv[idx] = strtok(_sorna.in_buff, " ");
+                    argv[idx] = strtok(NULL, " ");
                     if(NULL == argv[idx])
                     {
                         no_more_args = true;
@@ -194,45 +229,59 @@ int8_t sorna_tick(char ch)
                     argc++;
                 }
 
+                // check what was processed...
                 if(!no_more_args)
                 {
                     sorna_write_str("\r\nWNG:sorna-More_Arguments_Than_Supported\r\n");
                 }
 
-                char * token = argv[0];
-                if(token == NULL)
+                if(argv[0] == NULL)
                 {
                     _sorna.in_buff[0] = '\0';
                     _sorna.buff_pos = 0;
                     sorna_write_str("ERR:sorna-Command_Token_Cannot_Be_NULL\r\n");
                     return SORNA_FAIL;
                 }
+
                 for (uint8_t idx = 0; idx < _sorna.cmd_count; idx++)
                 {
-                    if(0 == strcmp(token, _sorna.commands[idx].token))
+                    if(0 == strcmp(argv[0], _sorna.commands[idx].token))
                     {
                         int8_t rv = _sorna.commands[idx].func(argc, argv);
                         if(SORNA_FAIL_UNKNOWN_ARG == rv)
                         {
                             sorna_write_str("\r\nWNG:");
-                            sorna_write_str(token);
+                            sorna_write_str(argv[0]);
                             sorna_write_str("-Unknown_Argument_Failure\r\n");
                         }
+
+                        // reset input buffer now it has finished being processed...
+                        _sorna.in_buff[0] = '\0';
+                        _sorna.buff_pos = 0;
+
+                        sorna_write_str(_sorna.prompt);
                         return rv;
                     }
                 }
+
+                // Command wasn't found, display warning message...
                 sorna_write_str("\r\nWNG:");
-                sorna_write_str(token);
+                sorna_write_str(argv[0]);
                 sorna_write_str("-Unknown_Command_Failure\r\n");
+
+                // reset input buffer now it has finished being processed...
+                _sorna.in_buff[0] = '\0';
+                _sorna.buff_pos = 0;
+                sorna_write_str(_sorna.prompt);
                 return SORNA_FAIL_UNKNOWN_CMD;
                 
             }
+
+            return SORNA_SUCCESS;
         }
     }
-    else
-    {
-        return SORNA_FAIL;
-    }
+
+    return SORNA_FAIL;
 }
 int8_t sorna_register_cmd(char * cmd_str, cmd_func_t cmd_func, char *desc_short, char *desc_long)
 {
@@ -292,6 +341,7 @@ int8_t sorna_register_cmd(char * cmd_str, cmd_func_t cmd_func, char *desc_short,
         _sorna.commands[_sorna.cmd_count].func        = cmd_func;
         _sorna.commands[_sorna.cmd_count].desc_short  = desc_short;
         _sorna.commands[_sorna.cmd_count].desc_long   = desc_long;
+        _sorna.cmd_count++;
         return SORNA_SUCCESS;
     }
     else
@@ -303,8 +353,7 @@ int8_t sorna_register_cmd(char * cmd_str, cmd_func_t cmd_func, char *desc_short,
     return SORNA_FAIL;
 }
 
-
-void sorna_write_str(char *str)
+void sorna_write_str(char const * const str)
 {
     if (NULL != _sorna.write_str_f)
     {
