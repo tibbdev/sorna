@@ -33,6 +33,11 @@ Sorna sorna;
 
 const char* BOOL_OUT_ONOFF[] = {"off", "on"};
 
+void sorna_print_prompt(void)
+{
+    sorna_write_str(sorna.prompt);
+}
+
 int8_t help_cmd(uint8_t argc, char *argv[]);
 int8_t help_cmd(uint8_t argc, char *argv[])
 {
@@ -189,7 +194,7 @@ int8_t sorna_init(char * prompt, write_str_func_t write_str_f, reset_func_t rese
         sorna.write_str_f("\r\n   ***   SORNA   ***\r\n\r\n");
     }
 
-    sorna_write_str(sorna.prompt);
+    sorna_print_prompt();
 
     return rv;
 }
