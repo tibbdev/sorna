@@ -51,3 +51,4 @@ int8_t sorna_init(char * prompt, write_str_func_t write_str_f, reset_func_t rese
 int8_t sorna_tick(char ch);
 int8_t sorna_register_cmd(char * cmd_str, cmd_func_t cmd_func, char *desc_short, char *desc_long);
 void sorna_write_str(char const * const str);
+void sorna_print_prompt(void);
